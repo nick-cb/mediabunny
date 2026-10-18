@@ -16,6 +16,9 @@ tsc -p packages/dts
 rm -rf packages/aac-encoder/dist/modules
 tsc -p packages/aac-encoder
 
+rm -rf packages/aac-decoder/dist/modules
+tsc -p packages/aac-decoder
+
 rm -rf packages/flac-encoder/dist/modules
 tsc -p packages/flac-encoder
 

@@ -18,6 +18,7 @@ const rollupInput = Object.fromEntries(
 );
 
 export default defineConfig({
+	root: 'examples',
 	resolve: {
 		alias: {
 			'mediabunny': path.resolve(__dirname, './dist/bundles/mediabunny.mjs'),
@@ -27,6 +28,8 @@ export default defineConfig({
 				path.resolve(__dirname, './packages/dts/dist/bundles/mediabunny-dts.mjs'),
 			'@mediabunny/aac-encoder':
 				path.resolve(__dirname, './packages/aac-encoder/dist/bundles/mediabunny-aac-encoder.mjs'),
+			'@mediabunny/aac-decoder':
+				path.resolve(__dirname, './packages/aac-decoder/dist/bundles/mediabunny-aac-decoder.mjs'),
 			'@mediabunny/flac-encoder':
 				path.resolve(__dirname, './packages/flac-encoder/dist/bundles/mediabunny-flac-encoder.mjs'),
 			'@mediabunny/prores':

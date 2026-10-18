@@ -289,12 +289,44 @@ const serverVariants = await createVariants(
 	},
 );
 
+const aacDecoderVariants = await createVariants(
+	'packages/aac-decoder/src/index.ts',
+	'MediabunnyAacDecoder',
+	'packages/aac-decoder/dist/bundles/mediabunny-aac-decoder',
+	'js', // The bundles are purely for the browser, not for Node (due to the peer dependency)
+	{
+		plugins: [
+			PluginExternalGlobal.externalGlobalPlugin({
+				mediabunny: 'Mediabunny',
+			}),
+			inlineWorkerPlugin({
+				define: {
+					'import.meta.url': '""',
+				},
+				legalComments: 'none',
+			}),
+		],
+	},
+	{
+		external: ['mediabunny'],
+		plugins: [
+			inlineWorkerPlugin({
+				define: {
+					'import.meta.url': '""',
+				},
+				legalComments: 'none',
+			}),
+		],
+	},
+);
+
 const contexts = [
 	...mediabunnyVariants,
 	...mp3EncoderVariants,
 	...ac3Variants,
 	...dtsVariants,
 	...aacEncoderVariants,
+	...aacDecoderVariants,
 	...flacEncoderVariants,
 	...proresVariants,
 	...serverVariants,
