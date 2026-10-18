@@ -510,6 +510,11 @@ export type AvcSpsInfo = {
 	profileIdc: number;
 	constraintFlags: number;
 	levelIdc: number;
+	seqParameterSetId: number;
+	log2MaxFrameNum: number;
+	picOrderCntType: number;
+	log2MaxPicOrderCntLsb: number | null;
+	separateColourPlaneFlag: number;
 	frameMbsOnlyFlag: number;
 	chromaFormatIdc: number;
 	bitDepthLumaMinus8: number;
@@ -567,7 +572,7 @@ export const parseAvcSps = (sps: Uint8Array): AvcSpsInfo | null => {
 		const constraintFlags = bitstream.readAlignedByte();
 		const levelIdc = bitstream.readAlignedByte();
 
-		readExpGolomb(bitstream); // seq_parameter_set_id
+		const seqParameterSetId = readExpGolomb(bitstream);
 
 		// "When chroma_format_idc is not present, it shall be inferred to be equal to 1 (4:2:0 chroma format)."
 		let chromaFormatIdc = 1;
@@ -617,11 +622,12 @@ export const parseAvcSps = (sps: Uint8Array): AvcSpsInfo | null => {
 			}
 		}
 
-		readExpGolomb(bitstream); // log2_max_frame_num_minus4
+		const log2MaxFrameNum = readExpGolomb(bitstream) + 4;
 
 		const picOrderCntType = readExpGolomb(bitstream);
+		let log2MaxPicOrderCntLsb: number | null = null;
 		if (picOrderCntType === 0) {
-			readExpGolomb(bitstream); // log2_max_pic_order_cnt_lsb_minus4
+			log2MaxPicOrderCntLsb = readExpGolomb(bitstream) + 4;
 		} else if (picOrderCntType === 1) {
 			bitstream.skipBits(1); // delta_pic_order_always_zero_flag
 			readSignedExpGolomb(bitstream); // offset_for_non_ref_pic
@@ -810,6 +816,11 @@ export const parseAvcSps = (sps: Uint8Array): AvcSpsInfo | null => {
 			profileIdc,
 			constraintFlags,
 			levelIdc,
+			seqParameterSetId,
+			log2MaxFrameNum,
+			picOrderCntType,
+			log2MaxPicOrderCntLsb,
+			separateColourPlaneFlag,
 			frameMbsOnlyFlag,
 			chromaFormatIdc,
 			bitDepthLumaMinus8,

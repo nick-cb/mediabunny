@@ -7,6 +7,7 @@
  */
 
 import { parsePcmCodec, PCM_AUDIO_CODECS, PcmAudioCodec, VideoCodec, AudioCodec } from './codec';
+import { AvcTimestampRepair } from './avc-picture-order';
 import {
 	addAvcBitstreamRestriction,
 	AvcNalUnitType,
@@ -737,7 +738,13 @@ export abstract class BaseMediaSampleSink<
 				let currentPacket = lastKeyPacket;
 				decoder.decode(currentPacket);
 
-				while (currentPacket.sequenceNumber < maxSequenceNumber) {
+				// A repaired AVC picture can precede a later packet in display order. Decode ahead
+				// by at most the H.264 maximum of 16 buffered pictures before flushing a sparse request.
+				while (
+					currentPacket.sequenceNumber < maxSequenceNumber
+					|| (decoder instanceof VideoDecoderWrapper && decoder.avcTimestampRepair?.needed
+						&& currentPacket.sequenceNumber < maxSequenceNumber + 16)
+				) {
 					while (sampleQueue.length + decoder.getDecodeQueueSize() >= MAX_QUEUE_SIZE && !terminated) {
 						({ promise: queueDequeue, resolve: onQueueDequeue } = promiseWithResolvers());
 						await queueDequeue;
@@ -748,6 +755,7 @@ export abstract class BaseMediaSampleSink<
 					}
 
 					const nextPacket = await packetSink.getNextPacket(currentPacket, retrievalOptions);
+					if (!nextPacket && currentPacket.sequenceNumber >= maxSequenceNumber) break;
 					assert(nextPacket);
 
 					decoder.decode(nextPacket);
@@ -885,6 +893,7 @@ export abstract class BaseMediaSampleSink<
 
 class VideoDecoderWrapper extends DecoderWrapper<VideoSample> {
 	decoder: VideoDecoder | null = null;
+	avcTimestampRepair: AvcTimestampRepair | null = null;
 
 	customDecoder: CustomVideoDecoder | null = null;
 	customDecoderCallSerializer = new CallSerializer();
@@ -946,6 +955,10 @@ class VideoDecoderWrapper extends DecoderWrapper<VideoSample> {
 				.call(() => this.customDecoder!.init())
 				.catch(error => onError(error));
 		} else {
+			if (isWebKit() && codec === 'avc') {
+				this.avcTimestampRepair = new AvcTimestampRepair(this.decoderConfig);
+			}
+
 			const colorHandler = (frame: VideoFrame) => {
 				if (this.alphaQueue.length > 0) {
 					// Even when no alpha data is present (most of the time), there will be nulls in this queue
@@ -1124,6 +1137,7 @@ class VideoDecoderWrapper extends DecoderWrapper<VideoSample> {
 				}
 			}
 
+			if (this.avcTimestampRepair) packet = this.avcTimestampRepair.repair(packet);
 			this.decoder.decode(packet.toEncodedVideoChunk());
 			this.decodeAlphaData(packet);
 		}
@@ -1377,6 +1391,7 @@ class VideoDecoderWrapper extends DecoderWrapper<VideoSample> {
 
 		this.currentPacketIndex = 0;
 		this.raslSkipped = false;
+		this.avcTimestampRepair?.reset();
 	}
 
 	close() {
